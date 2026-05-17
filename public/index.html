@@ -262,6 +262,41 @@ function addPeer(incomingSignal, callerID, stream){
     return peer;
 }
 
+localStreamPromise = navigator.mediaDevices
+.getUserMedia({audio:true});
+
+let micTrack;
+
+localStreamPromise.then(stream => {
+
+    micTrack = stream.getAudioTracks()[0];
+
+    micTrack.enabled = false;
+});
+
+const talkBtn =
+    document.getElementById("talkBtn");
+
+talkBtn.addEventListener("pointerdown", () => {
+
+    radioSound.currentTime = 0;
+
+    radioSound.play();
+
+    if(micTrack){
+
+        micTrack.enabled = true;
+    }
+});
+
+talkBtn.addEventListener("pointerup", () => {
+
+    if(micTrack){
+
+        micTrack.enabled = false;
+    }
+});
+    
 </script>
 
 </body>
