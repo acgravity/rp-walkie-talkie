@@ -6,8 +6,8 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    cors: {
-        origin: "*"
+    cors:{
+        origin:"*"
     }
 });
 
@@ -16,16 +16,41 @@ app.use(express.static("public"));
 io.on("connection", socket => {
 
     socket.on("join-channel", channel => {
+
         socket.join(channel);
+
         socket.channel = channel;
+
+        const clients =
+            Array.from(
+                io.sockets.adapter.rooms.get(channel) || []
+            );
+
+        socket.emit("all-users",
+            clients.filter(id => id !== socket.id)
+        );
     });
 
-    socket.on("radio-start", () => {
-        socket.to(socket.channel).emit("radio-start");
+    socket.on("sending-signal", payload => {
+
+        io.to(payload.userToSignal).emit(
+            "user-joined",
+            {
+                signal: payload.signal,
+                callerID: payload.callerID
+            }
+        );
     });
-    
-    socket.on("voice", data => {
-        socket.to(socket.channel).emit("voice", data);
+
+    socket.on("returning-signal", payload => {
+
+        io.to(payload.callerID).emit(
+            "receiving-returned-signal",
+            {
+                signal: payload.signal,
+                id: socket.id
+            }
+        );
     });
 
 });
@@ -33,5 +58,5 @@ io.on("connection", socket => {
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-    console.log("Server läuft auf Port " + PORT);
+    console.log("Server läuft");
 });
