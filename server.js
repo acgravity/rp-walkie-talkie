@@ -20,6 +20,10 @@ io.on("connection", socket => {
         socket.channel = channel;
     });
 
+    socket.on("radio-start", () => {
+        socket.to(socket.channel).emit("radio-start");
+    });
+    
     socket.on("voice", data => {
         socket.to(socket.channel).emit("voice", data);
     });
