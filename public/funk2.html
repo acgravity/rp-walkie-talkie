@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>FW Funk 2</title>
+
+<style>
+
+body{
+    margin:0;
+    background:#5e5e5e;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+}
+
+.radio-container{
+    position:relative;
+    width:280px;
+}
+
+.radio-image{
+    width:100%;
+    display:block;
+}
+
+/* SPRECHTASTE */
+.ptt-button{
+    position:absolute;
+
+    left:-8px;
+    top:365px;
+
+    width:28px;
+    height:95px;
+
+    background:transparent;
+    border:none;
+}
+
+</style>
+</head>
+<body>
+
+<div class="radio-container">
+
+    <img src="funkgeraet2.png" class="radio-image">
+
+    <button class="ptt-button" id="talkBtn"></button>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const socket = io();
+
+/* ANDERE FUNKGRUPPE */
+socket.emit("join-channel", "bgfw");
+
+let mediaRecorder;
+let audioChunks = [];
+
+const radioSound = new Audio("/sounds/funksound.mp3");
+
+async function initMic(){
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+        audio:true
+    });
+
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => {
+        audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+
+        const blob = new Blob(audioChunks,{
+            type:"audio/webm"
+        });
+
+        audioChunks = [];
+
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+            socket.emit("voice", reader.result);
+        };
+
+        reader.readAsDataURL(blob);
+    };
+}
+
+initMic();
+
+const talkBtn = document.getElementById("talkBtn");
+
+talkBtn.addEventListener("pointerdown", async () => {
+
+    radioSound.currentTime = 0;
+    radioSound.play();
+
+    if(mediaRecorder &&
+       mediaRecorder.state !== "recording"){
+
+        mediaRecorder.start();
+    }
+});
+
+talkBtn.addEventListener("pointerup", () => {
+
+    if(mediaRecorder &&
+       mediaRecorder.state === "recording"){
+
+        mediaRecorder.stop();
+    }
+});
+
+socket.on("voice", data => {
+
+    const audio = new Audio(data);
+
+    audio.play();
+});
+
+</script>
+
+</body>
+</html>
