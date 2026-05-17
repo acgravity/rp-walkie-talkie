@@ -143,7 +143,125 @@ document.addEventListener("keyup", e => {
         }
     }
 });
-    
+
+const peers = {};
+
+const socket = io();
+
+const channelName = "fw-funk";
+/* funk2.html:
+const channelName = "polizei-funk";
+*/
+
+socket.emit("join-channel", channelName);
+
+let localStream;
+
+const radioSound =
+    new Audio("/sounds/funksound.mp3");
+
+async function init(){
+
+    localStream =
+        await navigator.mediaDevices.getUserMedia({
+            audio:true
+        });
+
+    socket.on("all-users", users => {
+
+        users.forEach(userID => {
+
+            const peer =
+                createPeer(userID, socket.id, localStream);
+
+            peers[userID] = peer;
+        });
+    });
+
+    socket.on("user-joined", payload => {
+
+        const peer =
+            addPeer(
+                payload.signal,
+                payload.callerID,
+                localStream
+            );
+
+        peers[payload.callerID] = peer;
+    });
+
+    socket.on(
+        "receiving-returned-signal",
+        payload => {
+
+            const item = peers[payload.id];
+
+            item.signal(payload.signal);
+        }
+    );
+}
+
+init();
+
+function createPeer(userToSignal, callerID, stream){
+
+    const peer = new SimplePeer({
+        initiator:true,
+        trickle:false,
+        stream:stream
+    });
+
+    peer.on("signal", signal => {
+
+        socket.emit("sending-signal", {
+            userToSignal,
+            callerID,
+            signal
+        });
+    });
+
+    peer.on("stream", stream => {
+
+        const audio = new Audio();
+
+        audio.srcObject = stream;
+
+        audio.play();
+    });
+
+    return peer;
+}
+
+function addPeer(incomingSignal, callerID, stream){
+
+    const peer = new SimplePeer({
+        initiator:false,
+        trickle:false,
+        stream:stream
+    });
+
+    peer.on("signal", signal => {
+
+        socket.emit("returning-signal", {
+            signal,
+            callerID
+        });
+    });
+
+    peer.on("stream", stream => {
+
+        const audio = new Audio();
+
+        audio.srcObject = stream;
+
+        audio.play();
+    });
+
+    peer.signal(incomingSignal);
+
+    return peer;
+}
+
 </script>
 
 </body>
