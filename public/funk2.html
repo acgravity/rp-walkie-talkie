@@ -115,6 +115,8 @@ talkBtn.addEventListener("pointerdown", async () => {
     radioSound.currentTime = 0;
     radioSound.play();
 
+    socket.emit("radio-start");
+
     if(mediaRecorder &&
        mediaRecorder.state !== "recording"){
 
@@ -131,6 +133,13 @@ talkBtn.addEventListener("pointerup", () => {
     }
 });
 
+socket.on("radio-start", () => {
+
+    const startSound = new Audio("/sounds/funksound.mp3");
+
+    startSound.play();
+});
+    
 socket.on("voice", data => {
 
     const audio = new Audio(data);
