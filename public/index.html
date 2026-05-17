@@ -210,6 +210,46 @@ socket.on("voice", data => {
     audio.play();
 });
 
+let isTalking = false;
+
+document.addEventListener("keydown", e => {
+
+    if(!hotkey) return;
+
+    if(e.key.toLowerCase() === hotkey &&
+       !isTalking){
+
+        isTalking = true;
+
+        radioSound.currentTime = 0;
+        radioSound.play();
+
+        socket.emit("radio-start");
+
+        if(mediaRecorder &&
+           mediaRecorder.state !== "recording"){
+
+            mediaRecorder.start();
+        }
+    }
+});
+
+document.addEventListener("keyup", e => {
+
+    if(!hotkey) return;
+
+    if(e.key.toLowerCase() === hotkey){
+
+        isTalking = false;
+
+        if(mediaRecorder &&
+           mediaRecorder.state === "recording"){
+
+            mediaRecorder.stop();
+        }
+    }
+});
+    
 </script>
 
 </body>
