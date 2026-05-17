@@ -100,65 +100,24 @@ body{
 
 <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
 
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+
 <script>
 
 const socket = io();
 
-socket.emit("join-channel", "314f");
-
-document.addEventListener("keydown", e => {
-
-    if(!hotkey) return;
-
-    if(e.key.toLowerCase() === hotkey &&
-       !isTalking){
-
-        isTalking = true;
-
-        radioSound.currentTime = 0;
-        radioSound.play();
-
-        socket.emit("radio-start");
-
-        if(mediaRecorder &&
-           mediaRecorder.state !== "recording"){
-
-            mediaRecorder.start();
-        }
-    }
-});
-
-document.addEventListener("keyup", e => {
-
-    if(!hotkey) return;
-
-    if(e.key.toLowerCase() === hotkey){
-
-        isTalking = false;
-
-        if(mediaRecorder &&
-           mediaRecorder.state === "recording"){
-
-            mediaRecorder.stop();
-        }
-    }
-});
-
-const peers = {};
-
-const socket = io();
-
 const channelName = "fw-funk";
-/* funk2.html:
-const channelName = "polizei-funk";
-*/
 
 socket.emit("join-channel", channelName);
 
-let localStream;
+const peers = {};
 
 const radioSound =
     new Audio("/sounds/funksound.mp3");
+
+let localStream;
+let micTrack;
 
 async function init(){
 
@@ -167,12 +126,21 @@ async function init(){
             audio:true
         });
 
+    micTrack =
+        localStream.getAudioTracks()[0];
+
+    micTrack.enabled = false;
+
     socket.on("all-users", users => {
 
         users.forEach(userID => {
 
             const peer =
-                createPeer(userID, socket.id, localStream);
+                createPeer(
+                    userID,
+                    socket.id,
+                    localStream
+                );
 
             peers[userID] = peer;
         });
@@ -194,9 +162,12 @@ async function init(){
         "receiving-returned-signal",
         payload => {
 
-            const item = peers[payload.id];
+            const peer = peers[payload.id];
 
-            item.signal(payload.signal);
+            if(peer){
+
+                peer.signal(payload.signal);
+            }
         }
     );
 }
@@ -262,41 +233,35 @@ function addPeer(incomingSignal, callerID, stream){
     return peer;
 }
 
-localStreamPromise = navigator.mediaDevices
-.getUserMedia({audio:true});
-
-let micTrack;
-
-localStreamPromise.then(stream => {
-
-    micTrack = stream.getAudioTracks()[0];
-
-    micTrack.enabled = false;
-});
-
 const talkBtn =
     document.getElementById("talkBtn");
 
-talkBtn.addEventListener("pointerdown", () => {
+talkBtn.addEventListener(
+    "pointerdown",
+    () => {
 
-    radioSound.currentTime = 0;
+        radioSound.currentTime = 0;
 
-    radioSound.play();
+        radioSound.play();
 
-    if(micTrack){
+        if(micTrack){
 
-        micTrack.enabled = true;
+            micTrack.enabled = true;
+        }
     }
-});
+);
 
-talkBtn.addEventListener("pointerup", () => {
+talkBtn.addEventListener(
+    "pointerup",
+    () => {
 
-    if(micTrack){
+        if(micTrack){
 
-        micTrack.enabled = false;
+            micTrack.enabled = false;
+        }
     }
-});
-    
+);
+
 </script>
 
 </body>
