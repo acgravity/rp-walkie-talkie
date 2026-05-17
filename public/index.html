@@ -2,76 +2,77 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Funkgerät</title>
+<title>FW Funk</title>
 
 <style>
+
 body{
-    background:#111;
-    color:white;
-    font-family:Arial;
-    text-align:center;
-    padding-top:50px;
+    margin:0;
+    background:#5e5e5e;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    user-select:none;
 }
 
-.container{
-    width:300px;
-    margin:auto;
-    background:#222;
-    padding:20px;
-    border-radius:15px;
+.radio-container{
+    position:relative;
+    width:280px;
 }
 
-input, button, select{
+.radio-image{
     width:100%;
-    padding:10px;
-    margin-top:10px;
-    border:none;
-    border-radius:10px;
+    display:block;
 }
 
-button{
-    background:#00aa44;
-    color:white;
-    font-size:18px;
+/* UNSICHTBARE SPRECHTASTE */
+.ptt-button{
+    position:absolute;
+
+    left:-8px;
+    top:365px;
+
+    width:28px;
+    height:95px;
+
+    background:transparent;
+    border:none;
     cursor:pointer;
 }
 
-button:active{
-    background:#007733;
+/* Optional beim Drücken */
+.ptt-button:active{
+    background:rgba(255,255,0,0.15);
 }
+
 </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Funkgerät</h1>
+<div class="radio-container">
 
-    <input type="text" id="name" placeholder="Dein Name">
+    <img src="funkgeraet.png" class="radio-image">
 
-    <select id="channel">
-        <option value="police">Polizei</option>
-        <option value="ems">EMS</option>
-        <option value="civil">Zivil</option>
-    </select>
+    <button class="ptt-button" id="talkBtn"></button>
 
-    <button id="joinBtn">Kanal verbinden</button>
-
-    <button id="talkBtn">Sprechen</button>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
+
 const socket = io();
+
+socket.emit("join-channel", "fw-funk");
 
 let mediaRecorder;
 let audioChunks = [];
 
-document.getElementById("joinBtn").onclick = async () => {
+const radioSound = new Audio("/sounds/digitalfunk_feuerwehr.mp3");
 
-    const channel = document.getElementById("channel").value;
-
-    socket.emit("join-channel", channel);
+async function initMic(){
 
     const stream = await navigator.mediaDevices.getUserMedia({
         audio:true
@@ -85,7 +86,7 @@ document.getElementById("joinBtn").onclick = async () => {
 
     mediaRecorder.onstop = () => {
 
-        const blob = new Blob(audioChunks, {
+        const blob = new Blob(audioChunks,{
             type:"audio/webm"
         });
 
@@ -99,28 +100,31 @@ document.getElementById("joinBtn").onclick = async () => {
 
         reader.readAsDataURL(blob);
     };
-};
+}
+
+initMic();
 
 const talkBtn = document.getElementById("talkBtn");
-
-const radioSound = new Audio("/sounds/funksound.mp3");
 
 talkBtn.addEventListener("pointerdown", async () => {
 
     radioSound.currentTime = 0;
     radioSound.play();
 
-    if(mediaRecorder){
+    if(mediaRecorder &&
+       mediaRecorder.state !== "recording"){
+
         mediaRecorder.start();
     }
 });
 
 talkBtn.addEventListener("pointerup", () => {
 
-    if(mediaRecorder){
+    if(mediaRecorder &&
+       mediaRecorder.state === "recording"){
+
         mediaRecorder.stop();
     }
-
 });
 
 socket.on("voice", data => {
@@ -129,6 +133,7 @@ socket.on("voice", data => {
 
     audio.play();
 });
+
 </script>
 
 </body>
