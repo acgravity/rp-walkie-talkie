@@ -103,17 +103,25 @@ document.getElementById("joinBtn").onclick = async () => {
 
 const talkBtn = document.getElementById("talkBtn");
 
-talkBtn.onmousedown = () => {
+const radioSound = new Audio("/sounds/funksound.mp3");
+
+talkBtn.addEventListener("pointerdown", async () => {
+
+    radioSound.currentTime = 0;
+    radioSound.play();
+
     if(mediaRecorder){
         mediaRecorder.start();
     }
-};
+});
 
-talkBtn.onmouseup = () => {
+talkBtn.addEventListener("pointerup", () => {
+
     if(mediaRecorder){
         mediaRecorder.stop();
     }
-};
+
+});
 
 socket.on("voice", data => {
 
