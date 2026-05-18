@@ -26,7 +26,7 @@
     margin-top:5px;
     font-size:14px;
 }
-    
+
 body{
     margin:0;
     background:#5e5e5e;
@@ -48,7 +48,7 @@ body{
     display:block;
 }
 
-/* UNSICHTBARE SPRECHTASTE */
+/* SPRECHTASTE */
 .ptt-button{
     position:absolute;
 
@@ -60,16 +60,18 @@ body{
 
     background:transparent;
     border:none;
+
     cursor:pointer;
+
+    transition:0.15s;
 }
 
 .ptt-button:hover{
     background:rgba(255,255,0,0.10);
 }
-    
-/* Optional beim Drücken */
+
 .ptt-button:active{
-    background:rgba(255,255,0,0.15);
+    background:rgba(255,255,0,0.18);
 }
 
 </style>
@@ -87,7 +89,7 @@ body{
     </p>
 
 </div>
-    
+
 <div class="radio-container">
 
     <img src="funkgeraet.png" class="radio-image">
@@ -95,10 +97,6 @@ body{
     <button class="ptt-button" id="talkBtn"></button>
 
 </div>
-
-<script src="/socket.io/socket.io.js"></script>
-
-<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
@@ -117,15 +115,71 @@ const radioSound =
 let localStream;
 let micTrack;
 
+let isTalking = false;
+
+/* HOTKEY */
+
+const STORAGE_KEY = "funk_hotkey_1";
+
+let hotkey =
+    localStorage.getItem(STORAGE_KEY);
+
+const hotkeyDisplay =
+    document.getElementById("hotkeyDisplay");
+
+const setHotkeyBtn =
+    document.getElementById("setHotkeyBtn");
+
+if(hotkey){
+
+    hotkeyDisplay.innerText =
+        "Hotkey: " + hotkey.toUpperCase();
+}
+
+setHotkeyBtn.onclick = () => {
+
+    hotkeyDisplay.innerText =
+        "Taste drücken...";
+
+    function keyListener(e){
+
+        hotkey = e.key.toLowerCase();
+
+        localStorage.setItem(
+            STORAGE_KEY,
+            hotkey
+        );
+
+        hotkeyDisplay.innerText =
+            "Hotkey: " + hotkey.toUpperCase();
+
+        document.removeEventListener(
+            "keydown",
+            keyListener
+        );
+    }
+
+    document.addEventListener(
+        "keydown",
+        keyListener
+    );
+};
+
+/* MIKRO INITIALISIEREN */
+
 async function init(){
 
     localStream =
         await navigator.mediaDevices.getUserMedia({
+
             audio:{
-    echoCancellation:true,
-    noiseSuppression:true,
-    autoGainControl:true
-                }
+                echoCancellation:true,
+                noiseSuppression:true,
+                autoGainControl:true,
+                sampleRate:48000,
+                channelCount:1
+            }
+
         });
 
     micTrack =
@@ -133,19 +187,24 @@ async function init(){
 
     micTrack.enabled = false;
 
-    localStream.getTracks().forEach(track => {
-    track.enabled = true;
-});
-
-setTimeout(() => {
+    /* AUDIO ENGINE AUFWÄRMEN */
 
     localStream.getTracks().forEach(track => {
-        track.enabled = false;
+        track.enabled = true;
     });
 
-}, 500);
+    setTimeout(() => {
 
-    socket.emit("join-channel", channelName);
+        localStream.getTracks().forEach(track => {
+            track.enabled = false;
+        });
+
+    }, 500);
+
+    socket.emit(
+        "join-channel",
+        channelName
+    );
 
     socket.on("all-users", users => {
 
@@ -178,11 +237,14 @@ setTimeout(() => {
         "receiving-returned-signal",
         payload => {
 
-            const peer = peers[payload.id];
+            const peer =
+                peers[payload.id];
 
             if(peer){
 
-                peer.signal(payload.signal);
+                peer.signal(
+                    payload.signal
+                );
             }
         }
     );
@@ -190,65 +252,98 @@ setTimeout(() => {
 
 init();
 
-function createPeer(userToSignal, callerID, stream){
+/* PEER ERSTELLEN */
+
+function createPeer(
+    userToSignal,
+    callerID,
+    stream
+){
 
     const peer = new SimplePeer({
+
         initiator:true,
         trickle:false,
         stream:stream
+
     });
 
     peer.on("signal", signal => {
 
-        socket.emit("sending-signal", {
-            userToSignal,
-            callerID,
-            signal
-        });
+        socket.emit(
+            "sending-signal",
+            {
+                userToSignal,
+                callerID,
+                signal
+            }
+        );
     });
+
+    let audioElement;
 
     peer.on("stream", stream => {
 
-        const audio = new Audio();
+        if(audioElement) return;
 
-        audio.srcObject = stream;
+        audioElement = new Audio();
 
-        audio.autoplay = true;
-        audio.playsInline = true;
+        audioElement.srcObject =
+            stream;
 
-        audio.play().catch(() => {});
-        
+        audioElement.autoplay = true;
+        audioElement.playsInline = true;
+
+        audioElement.play()
+        .catch(() => {});
     });
 
     return peer;
 }
 
-function addPeer(incomingSignal, callerID, stream){
+/* PEER HINZUFÜGEN */
+
+function addPeer(
+    incomingSignal,
+    callerID,
+    stream
+){
 
     const peer = new SimplePeer({
+
         initiator:false,
         trickle:false,
         stream:stream
+
     });
 
     peer.on("signal", signal => {
 
-        socket.emit("returning-signal", {
-            signal,
-            callerID
-        });
+        socket.emit(
+            "returning-signal",
+            {
+                signal,
+                callerID
+            }
+        );
     });
+
+    let audioElement;
 
     peer.on("stream", stream => {
 
-        const audio = new Audio();
+        if(audioElement) return;
 
-        audio.srcObject = stream;
+        audioElement = new Audio();
 
-        audio.autoplay = true;
-        audio.playsInline = true;
+        audioElement.srcObject =
+            stream;
 
-        audio.play().catch(() => {});
+        audioElement.autoplay = true;
+        audioElement.playsInline = true;
+
+        audioElement.play()
+        .catch(() => {});
     });
 
     peer.signal(incomingSignal);
@@ -256,32 +351,119 @@ function addPeer(incomingSignal, callerID, stream){
     return peer;
 }
 
+/* FUNKEN START */
+
+function startTalking(){
+
+    if(isTalking) return;
+
+    isTalking = true;
+
+    radioSound.pause();
+
+    radioSound.currentTime = 0;
+
+    radioSound.play()
+    .catch(() => {});
+
+    if(micTrack){
+
+        micTrack.enabled = true;
+    }
+}
+
+/* FUNKEN STOP */
+
+function stopTalking(){
+
+    isTalking = false;
+
+    if(micTrack){
+
+        micTrack.enabled = false;
+    }
+}
+
+/* BUTTON */
+
 const talkBtn =
     document.getElementById("talkBtn");
 
 talkBtn.addEventListener(
     "pointerdown",
-    () => {
-
-        radioSound.currentTime = 0;
-
-        radioSound.play().catch(() => {});
-
-        if(micTrack){
-
-            micTrack.enabled = true;
-        }
-    }
+    startTalking
 );
 
 talkBtn.addEventListener(
     "pointerup",
+    stopTalking
+);
+
+talkBtn.addEventListener(
+    "pointerleave",
+    stopTalking
+);
+
+/* MOBILE */
+
+talkBtn.addEventListener(
+    "touchstart",
+    e => {
+        e.preventDefault();
+    }
+);
+
+talkBtn.addEventListener(
+    "touchend",
+    e => {
+        e.preventDefault();
+    }
+);
+
+/* HOTKEY */
+
+document.addEventListener(
+    "keydown",
+    e => {
+
+        if(!hotkey) return;
+
+        if(
+            e.key.toLowerCase() === hotkey &&
+            !isTalking
+        ){
+
+            startTalking();
+        }
+    }
+);
+
+document.addEventListener(
+    "keyup",
+    e => {
+
+        if(!hotkey) return;
+
+        if(
+            e.key.toLowerCase() === hotkey
+        ){
+
+            stopTalking();
+        }
+    }
+);
+
+/* CLEANUP */
+
+window.addEventListener(
+    "beforeunload",
     () => {
 
-        if(micTrack){
+        Object.values(peers)
+        .forEach(peer => {
 
-            micTrack.enabled = false;
-        }
+            peer.destroy();
+        });
     }
 );
 
