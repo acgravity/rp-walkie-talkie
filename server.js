@@ -1,8 +1,11 @@
 const express = require("express");
+
 const http = require("http");
+
 const { Server } = require("socket.io");
 
 const app = express();
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -11,33 +14,53 @@ const io = new Server(server, {
     }
 });
 
+/* PUBLIC ORDNER */
+
 app.use(express.static("public"));
+
+/* BESETZTE FUNKGERÄTE */
 
 const occupiedRadios = {};
 
+/* SOCKET VERBINDUNG */
+
 io.on("connection", socket => {
+
+    console.log("User verbunden:", socket.id);
+
+    /* FUNKSOUND */
 
     socket.on("radio-click", channel => {
 
-    socket.to(channel).emit("play-radio-click");
+        socket.to(channel).emit(
+            "play-radio-click"
+        );
+    });
 
-});
+    /* FUNKGERÄT RESERVIEREN */
 
     socket.on("claim-radio", radioId => {
 
-    if(occupiedRadios[radioId]){
+        if(occupiedRadios[radioId]){
 
-        socket.emit("radio-busy");
+            socket.emit("radio-busy");
 
-        return;
-    }
+            return;
+        }
 
-    occupiedRadios[radioId] = socket.id;
+        occupiedRadios[radioId] = socket.id;
 
-    socket.radioId = radioId;
+        socket.radioId = radioId;
 
-    socket.emit("radio-approved");
-});
+        socket.emit("radio-approved");
+
+        console.log(
+            "Radio reserviert:",
+            radioId
+        );
+    });
+
+    /* CHANNEL BETRETEN */
 
     socket.on("join-channel", channel => {
 
@@ -50,55 +73,76 @@ io.on("connection", socket => {
                 io.sockets.adapter.rooms.get(channel) || []
             );
 
-        socket.emit("all-users",
-            clients.filter(id => id !== socket.id)
+        /* AKTUELLE USER SENDEN */
+
+        socket.emit(
+            "all-users",
+            clients.filter(
+                id => id !== socket.id
+            )
+        );
+
+        /* ANDERE USER INFORMIEREN */
+
+        socket.to(channel).emit(
+            "user-joined",
+            socket.id
+        );
+
+        console.log(
+            "User beigetreten:",
+            socket.id,
+            "=>",
+            channel
         );
     });
 
-    socket.on("sending-signal", payload => {
+    /* WEBRTC SIGNAL */
 
-    io.to(payload.userToSignal).emit(
-        "user-joined",
-        {
-            signal: payload.signal,
-            callerID: payload.callerID
-        }
-    );
-});
+    socket.on("signal", data => {
 
-socket.on("returning-signal", payload => {
-
-    io.to(payload.callerID).emit(
-        "receiving-returned-signal",
-        {
-            signal: payload.signal,
-            id: socket.id
-        }
-    );
-});
-
-/* WICHTIG FÜR TRICKLE ICE */
-
-socket.on("signal", data => {
-
-    io.to(data.to).emit("signal", {
-        signal:data.signal,
-        from:socket.id
+        io.to(data.to).emit(
+            "signal",
+            {
+                signal:data.signal,
+                from:socket.id
+            }
+        );
     });
+
+    /* DISCONNECT */
+
+    socket.on("disconnect", () => {
+
+        console.log(
+            "User getrennt:",
+            socket.id
+        );
+
+        if(socket.radioId){
+
+            delete occupiedRadios[
+                socket.radioId
+            ];
+
+            console.log(
+                "Radio freigegeben:",
+                socket.radioId
+            );
+        }
+    });
+
 });
 
-socket.on("disconnect", () => {
+/* SERVER START */
 
-    if(socket.radioId){
-
-        delete occupiedRadios[socket.radioId];
-    }
-});
-    
-});
-
-const PORT = process.env.PORT || 3000;
+const PORT =
+    process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-    console.log("Server läuft");
+
+    console.log(
+        "Server läuft auf Port",
+        PORT
+    );
 });
