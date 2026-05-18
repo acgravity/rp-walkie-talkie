@@ -109,8 +109,6 @@ const socket = io();
 
 const channelName = "fw-funk";
 
-socket.emit("join-channel", channelName);
-
 const peers = {};
 
 const radioSound =
@@ -130,6 +128,8 @@ async function init(){
         localStream.getAudioTracks()[0];
 
     micTrack.enabled = false;
+
+    socket.emit("join-channel", channelName);
 
     socket.on("all-users", users => {
 
