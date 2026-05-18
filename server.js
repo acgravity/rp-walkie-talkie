@@ -71,6 +71,14 @@ io.on("connection", socket => {
         );
     });
 
+socket.on("disconnect", () => {
+
+    if(socket.radioId){
+
+        delete occupiedRadios[socket.radioId];
+    }
+});
+    
 });
 
 const PORT = process.env.PORT || 3000;
