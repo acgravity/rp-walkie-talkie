@@ -211,20 +211,6 @@ async function init(){
 
     micTrack.enabled = false;
 
-    /* AUDIO ENGINE AUFWÄRMEN */
-
-    localStream.getTracks().forEach(track => {
-        track.enabled = true;
-    });
-
-    setTimeout(() => {
-
-        localStream.getTracks().forEach(track => {
-            track.enabled = false;
-        });
-
-    }, 500);
-
     socket.emit(
         "join-channel",
         channelName
@@ -245,35 +231,16 @@ async function init(){
         });
     });
 
-    socket.on("user-joined", payload => {
+    socket.on("user-joined", userID => {
 
         const peer =
             addPeer(
-                payload.signal,
-                payload.callerID,
+                userID,
                 localStream
             );
 
-        peers[payload.callerID] = peer;
+        peers[userID] = peer;
     });
-
-    socket.on(
-        "receiving-returned-signal",
-        payload => {
-
-            const peer =
-                peers[payload.id];
-
-            if(peer){
-
-                peer.signal(
-                    payload.signal
-                );
-            }
-        }
-    );
-
-    /* TRICKLE ICE */
 
     socket.on("signal", data => {
 
@@ -314,39 +281,13 @@ function createPeer(
 
     peer.on("signal", signal => {
 
-        socket.emit(
-            "sending-signal",
-            {
-                userToSignal,
-                callerID,
-                signal
-            }
-        );
-
         socket.emit("signal", {
             to:userToSignal,
             signal
         });
     });
 
-    let audioElement;
-
-    peer.on("stream", stream => {
-
-        if(audioElement) return;
-
-        audioElement = new Audio();
-
-        audioElement.srcObject =
-            stream;
-
-        audioElement.autoplay = true;
-
-        audioElement.playsInline = true;
-
-        audioElement.play()
-        .catch(() => {});
-    });
+    setupPeerAudio(peer);
 
     return peer;
 }
@@ -354,7 +295,6 @@ function createPeer(
 /* PEER HINZUFÜGEN */
 
 function addPeer(
-    incomingSignal,
     callerID,
     stream
 ){
@@ -379,19 +319,20 @@ function addPeer(
 
     peer.on("signal", signal => {
 
-        socket.emit(
-            "returning-signal",
-            {
-                signal,
-                callerID
-            }
-        );
-
         socket.emit("signal", {
             to:callerID,
             signal
         });
     });
+
+    setupPeerAudio(peer);
+
+    return peer;
+}
+
+/* AUDIO SETUP */
+
+function setupPeerAudio(peer){
 
     let audioElement;
 
@@ -408,13 +349,11 @@ function addPeer(
 
         audioElement.playsInline = true;
 
+        audioElement.volume = 1;
+
         audioElement.play()
         .catch(() => {});
     });
-
-    peer.signal(incomingSignal);
-
-    return peer;
 }
 
 /* FUNKEN START */
