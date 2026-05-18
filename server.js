@@ -13,6 +13,8 @@ const io = new Server(server, {
 
 app.use(express.static("public"));
 
+const occupiedRadios = {};
+
 io.on("connection", socket => {
 
     socket.on("join-channel", channel => {
