@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>FW Funk</title>
+
+<style>
+
+html, body{
+    margin:0;
+    padding:0;
+
+    width:100%;
+    height:100%;
+
+    overflow:hidden;
+
+    background:#5e5e5e;
+
+    touch-action:manipulation;
+
+    -webkit-user-select:none;
+    user-select:none;
+
+    -webkit-touch-callout:none;
+
+    overscroll-behavior:none;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.radio-container{
+    position:relative;
+    width:280px;
+
+    -webkit-user-select:none;
+    user-select:none;
+
+    -webkit-touch-callout:none;
+
+    touch-action:manipulation;
+}
+
+.radio-image{
+    width:100%;
+    display:block;
+
+    pointer-events:none;
+
+    -webkit-user-drag:none;
+
+    user-select:none;
+
+    -webkit-touch-callout:none;
+}
+
+/* SPRECHTASTE */
+
+.ptt-button{
+    position:absolute;
+
+    left:-8px;
+    top:440px;
+
+    width:28px;
+    height:120px;
+
+    background:transparent;
+
+    border:none;
+
+    cursor:pointer;
+
+    transition:0.15s;
+
+    touch-action:none;
+
+    outline:none;
+
+    -webkit-tap-highlight-color:transparent;
+}
+
+.ptt-button:hover{
+    background:rgba(255,255,0,0.10);
+}
+
+.ptt-button:active{
+    background:rgba(255,255,0,0.18);
+}
+
+</style>
+    
+</head>
+<body>
+
+<div class="radio-container">
+
+    <img src="hrt_paf_10.png" class="radio-image">
+
+    <button class="ptt-button" id="talkBtn"></button>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+
+<script>
+
+const socket = io();
+
+const RADIO_ID = "hrt_paf_10";
+
+const channelName = "dmo";
+
+const peers = {};
+
+const radioSound =
+    new Audio("/sounds/funksound.mp3");
+
+socket.on("play-radio-click", () => {
+
+    const remoteSound =
+        new Audio("/sounds/funksound.mp3");
+
+    remoteSound.volume = 0.8;
+
+    remoteSound.play()
+    .catch(() => {});
+});
+
+let localStream;
+let micTrack;
+
+let isTalking = false;
+
+/* MIKROFON FRÜH INITIALISIEREN */
+
+navigator.mediaDevices.getUserMedia({
+    audio:true
+}).catch(() => {});
+
+/* FUNKGERÄT RESERVIEREN */
+
+socket.emit("claim-radio", RADIO_ID);
+
+socket.on("radio-approved", () => {
+
+    init();
+});
+
+socket.on("radio-busy", () => {
+
+    document.body.innerHTML = `
+
+        <div style="
+            color:white;
+            font-family:Arial;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            text-align:center;
+            padding:20px;
+        ">
+
+            <div>
+                <h1>📻 Funkgerät besetzt</h1>
+
+                <p>
+                    Dieses Funkgerät wird bereits benutzt.
+                </p>
+            </div>
+
+        </div>
+    `;
+});
+
+/* INITIALISIERUNG */
+
+async function init(){
+
+    localStream =
+        await navigator.mediaDevices.getUserMedia({
+
+            audio:{
+                echoCancellation:true,
+                noiseSuppression:true,
+                autoGainControl:true,
+                sampleRate:48000,
+                channelCount:1,
+                latency:0
+            }
+
+        });
+
+    micTrack =
+        localStream.getAudioTracks()[0];
+
+    micTrack.enabled = false;
+
+    /* AUDIO ENGINE AUFWÄRMEN */
+
+    localStream.getTracks().forEach(track => {
+        track.enabled = true;
+    });
+
+    setTimeout(() => {
+
+        localStream.getTracks().forEach(track => {
+            track.enabled = false;
+        });
+
+    }, 500);
+
+    socket.emit(
+        "join-channel",
+        channelName
+    );
+
+    socket.on("all-users", users => {
+
+        users.forEach(userID => {
+
+            const peer =
+                createPeer(
+                    userID,
+                    socket.id,
+                    localStream
+                );
+
+            peers[userID] = peer;
+        });
+    });
+
+    socket.on("user-joined", payload => {
+
+        const peer =
+            addPeer(
+                payload.signal,
+                payload.callerID,
+                localStream
+            );
+
+        peers[payload.callerID] = peer;
+    });
+
+    socket.on(
+        "receiving-returned-signal",
+        payload => {
+
+            const peer =
+                peers[payload.id];
+
+            if(peer){
+
+                peer.signal(
+                    payload.signal
+                );
+            }
+        }
+    );
+}
+
+/* PEER ERSTELLEN */
+
+function createPeer(
+    userToSignal,
+    callerID,
+    stream
+){
+
+    const peer = new SimplePeer({
+
+        initiator:true,
+        trickle:true,
+        stream:stream,
+
+        config:{
+            iceServers:[
+                {
+                    urls:"stun:stun.l.google.com:19302"
+                }
+            ]
+        }
+
+    });
+
+    peer.on("signal", signal => {
+
+        socket.emit(
+            "sending-signal",
+            {
+                userToSignal,
+                callerID,
+                signal
+            }
+        );
+    });
+
+    let audioElement;
+
+    peer.on("stream", stream => {
+
+        if(audioElement) return;
+
+        audioElement = new Audio();
+
+        audioElement.srcObject =
+            stream;
+
+        audioElement.autoplay = true;
+
+        audioElement.playsInline = true;
+
+        audioElement.play()
+        .catch(() => {});
+    });
+
+    return peer;
+}
+
+/* PEER HINZUFÜGEN */
+
+function addPeer(
+    incomingSignal,
+    callerID,
+    stream
+){
+
+    const peer = new SimplePeer({
+
+        initiator:false,
+        trickle:true,
+        stream:stream,
+
+        config:{
+            iceServers:[
+                {
+                    urls:"stun:stun.l.google.com:19302"
+                }
+            ]
+        }
+
+    });
+
+    peer.on("signal", signal => {
+
+        socket.emit(
+            "returning-signal",
+            {
+                signal,
+                callerID
+            }
+        );
+    });
+
+    let audioElement;
+
+    peer.on("stream", stream => {
+
+        if(audioElement) return;
+
+        audioElement = new Audio();
+
+        audioElement.srcObject =
+            stream;
+
+        audioElement.autoplay = true;
+
+        audioElement.playsInline = true;
+
+        audioElement.play()
+        .catch(() => {});
+    });
+
+    peer.signal(incomingSignal);
+
+    return peer;
+}
+
+/* FUNKEN START */
+
+function startTalking(){
+
+    if(isTalking) return;
+
+    isTalking = true;
+
+    socket.emit(
+    "radio-click",
+    channelName
+    );
+
+    radioSound.pause();
+
+    radioSound.currentTime = 0;
+
+    radioSound.play()
+    .catch(() => {});
+
+    if(micTrack){
+
+        micTrack.enabled = true;
+    }
+}
+
+/* FUNKEN STOP */
+
+function stopTalking(){
+
+    isTalking = false;
+
+    if(micTrack){
+
+        micTrack.enabled = false;
+    }
+}
+
+/* BUTTON */
+
+const talkBtn =
+    document.getElementById("talkBtn");
+
+talkBtn.addEventListener(
+    "pointerdown",
+    startTalking
+);
+
+talkBtn.addEventListener(
+    "pointerup",
+    stopTalking
+);
+
+talkBtn.addEventListener(
+    "pointerleave",
+    stopTalking
+);
+
+/* MOBILE */
+
+talkBtn.addEventListener(
+    "touchstart",
+    e => {
+        e.preventDefault();
+    }
+);
+
+talkBtn.addEventListener(
+    "touchend",
+    e => {
+        e.preventDefault();
+    }
+);
+
+/* CLEANUP */
+
+window.addEventListener(
+    "beforeunload",
+    () => {
+
+        Object.values(peers)
+        .forEach(peer => {
+
+            peer.destroy();
+        });
+    }
+);
+
+/* BILD AUSWAHL VERHINDERN */
+
+document.addEventListener(
+    "contextmenu",
+    e => e.preventDefault()
+);
+
+document.addEventListener(
+    "dragstart",
+    e => e.preventDefault()
+);
+
+document.addEventListener(
+    "selectstart",
+    e => e.preventDefault()
+);
+    
+</script>
+
+</body>
+</html>
