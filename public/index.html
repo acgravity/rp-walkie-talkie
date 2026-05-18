@@ -197,7 +197,11 @@ function createPeer(userToSignal, callerID, stream){
 
         audio.srcObject = stream;
 
-        audio.play();
+        audio.autoplay = true;
+        audio.playsInline = true;
+
+        audio.play().catch(() => {});
+        
     });
 
     return peer;
@@ -225,7 +229,10 @@ function addPeer(incomingSignal, callerID, stream){
 
         audio.srcObject = stream;
 
-        audio.play();
+        audio.autoplay = true;
+        audio.playsInline = true;
+
+        audio.play().catch(() => {});
     });
 
     peer.signal(incomingSignal);
