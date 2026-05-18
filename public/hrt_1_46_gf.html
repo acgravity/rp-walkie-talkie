@@ -2,6 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
 <title>FW Funk</title>
 
 <style>
@@ -93,7 +97,7 @@ body{
 }
 
 </style>
-    
+
 </head>
 <body>
 
@@ -106,6 +110,7 @@ body{
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
+
 <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
 
 <script>
@@ -120,6 +125,8 @@ const peers = {};
 
 const radioSound =
     new Audio("/sounds/funksound.mp3");
+
+/* REMOTE FUNKSOUND */
 
 socket.on("play-radio-click", () => {
 
@@ -168,11 +175,13 @@ socket.on("radio-busy", () => {
         ">
 
             <div>
+
                 <h1>📻 Funkgerät besetzt</h1>
 
                 <p>
                     Dieses Funkgerät wird bereits benutzt.
                 </p>
+
             </div>
 
         </div>
@@ -263,6 +272,18 @@ async function init(){
             }
         }
     );
+
+    /* TRICKLE ICE */
+
+    socket.on("signal", data => {
+
+        const peer = peers[data.from];
+
+        if(peer){
+
+            peer.signal(data.signal);
+        }
+    });
 }
 
 /* PEER ERSTELLEN */
@@ -276,7 +297,9 @@ function createPeer(
     const peer = new SimplePeer({
 
         initiator:true,
+
         trickle:true,
+
         stream:stream,
 
         config:{
@@ -299,6 +322,11 @@ function createPeer(
                 signal
             }
         );
+
+        socket.emit("signal", {
+            to:userToSignal,
+            signal
+        });
     });
 
     let audioElement;
@@ -334,7 +362,9 @@ function addPeer(
     const peer = new SimplePeer({
 
         initiator:false,
+
         trickle:true,
+
         stream:stream,
 
         config:{
@@ -356,6 +386,11 @@ function addPeer(
                 callerID
             }
         );
+
+        socket.emit("signal", {
+            to:callerID,
+            signal
+        });
     });
 
     let audioElement;
@@ -391,8 +426,8 @@ function startTalking(){
     isTalking = true;
 
     socket.emit(
-    "radio-click",
-    channelName
+        "radio-click",
+        channelName
     );
 
     radioSound.pause();
@@ -486,7 +521,7 @@ document.addEventListener(
     "selectstart",
     e => e.preventDefault()
 );
-    
+
 </script>
 
 </body>
