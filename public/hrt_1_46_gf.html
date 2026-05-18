@@ -121,6 +121,17 @@ const peers = {};
 const radioSound =
     new Audio("/sounds/funksound.mp3");
 
+socket.on("play-radio-click", () => {
+
+    const remoteSound =
+        new Audio("/sounds/funksound.mp3");
+
+    remoteSound.volume = 0.8;
+
+    remoteSound.play()
+    .catch(() => {});
+});
+
 let localStream;
 let micTrack;
 
@@ -378,6 +389,11 @@ function startTalking(){
     if(isTalking) return;
 
     isTalking = true;
+
+    socket.emit(
+    "radio-click",
+    channelName
+    );
 
     radioSound.pause();
 
