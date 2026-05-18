@@ -129,6 +129,18 @@ async function init(){
 
     micTrack.enabled = false;
 
+    localStream.getTracks().forEach(track => {
+    track.enabled = true;
+});
+
+setTimeout(() => {
+
+    localStream.getTracks().forEach(track => {
+        track.enabled = false;
+    });
+
+}, 500);
+
     socket.emit("join-channel", channelName);
 
     socket.on("all-users", users => {
