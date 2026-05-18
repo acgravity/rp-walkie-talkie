@@ -261,7 +261,7 @@ talkBtn.addEventListener(
 
         radioSound.currentTime = 0;
 
-        radioSound.play();
+        radioSound.play().catch(() => {});
 
         if(micTrack){
 
