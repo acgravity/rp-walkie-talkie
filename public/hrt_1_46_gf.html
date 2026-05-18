@@ -144,12 +144,6 @@ let micTrack;
 
 let isTalking = false;
 
-/* MIKROFON FRÜH INITIALISIEREN */
-
-navigator.mediaDevices.getUserMedia({
-    audio:true
-}).catch(() => {});
-
 /* FUNKGERÄT RESERVIEREN */
 
 socket.emit("claim-radio", RADIO_ID);
@@ -232,6 +226,8 @@ async function init(){
     });
 
     socket.on("user-joined", userID => {
+
+        if(peers[userID]) return;
 
         const peer =
             addPeer(
@@ -352,7 +348,23 @@ function setupPeerAudio(peer){
         audioElement.volume = 1;
 
         audioElement.play()
-        .catch(() => {});
+
+        .then(() => {
+
+            console.log(
+                "Audio verbunden"
+            );
+
+        })
+
+        .catch(err => {
+
+            console.log(
+                "Audio Fehler:",
+                err
+            );
+
+        });
     });
 }
 
