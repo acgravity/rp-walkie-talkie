@@ -88,6 +88,10 @@ let micTrack;
     
 /* MIKRO INITIALISIEREN */
 
+navigator.mediaDevices.getUserMedia({
+    audio:true
+}).catch(() => {});
+    
 async function init(){
 
     localStream =
