@@ -74,8 +74,6 @@ const socket = io();
 
 const RADIO_ID = "hrt_1_46_gf";
 
-let radioApproved = false;
-    
 const channelName = "fw-funk";
 
 const peers = {};
@@ -85,13 +83,53 @@ const radioSound =
 
 let localStream;
 let micTrack;
-    
-/* MIKRO INITIALISIEREN */
+
+let isTalking = false;
+
+/* MIKROFON FRÜH INITIALISIEREN */
 
 navigator.mediaDevices.getUserMedia({
     audio:true
 }).catch(() => {});
-    
+
+/* FUNKGERÄT RESERVIEREN */
+
+socket.emit("claim-radio", RADIO_ID);
+
+socket.on("radio-approved", () => {
+
+    init();
+});
+
+socket.on("radio-busy", () => {
+
+    document.body.innerHTML = `
+
+        <div style="
+            color:white;
+            font-family:Arial;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            text-align:center;
+            padding:20px;
+        ">
+
+            <div>
+                <h1>📻 Funkgerät besetzt</h1>
+
+                <p>
+                    Dieses Funkgerät wird bereits benutzt.
+                </p>
+            </div>
+
+        </div>
+    `;
+});
+
+/* INITIALISIERUNG */
+
 async function init(){
 
     localStream =
@@ -176,41 +214,6 @@ async function init(){
     );
 }
 
-socket.emit("claim-radio", RADIO_ID);
-
-socket.on("radio-approved", () => {
-
-    radioApproved = true;
-
-    init();
-});
-
-socket.on("radio-busy", () => {
-
-    document.body.innerHTML = `
-
-        <div style="
-            color:white;
-            font-family:Arial;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            text-align:center;
-            padding:20px;
-        ">
-
-            <div>
-                <h1>📻 Funkgerät besetzt</h1>
-                <p>
-                    Dieses Funkgerät wird bereits benutzt.
-                </p>
-            </div>
-
-        </div>
-    `;
-});
-
 /* PEER ERSTELLEN */
 
 function createPeer(
@@ -223,17 +226,16 @@ function createPeer(
 
         initiator:true,
         trickle:true,
-        stream:stream
+        stream:stream,
 
         config:{
-        iceServers:[
-            {
-                urls:"stun:stun.l.google.com:19302"
-            }
-        ]
-    }
+            iceServers:[
+                {
+                    urls:"stun:stun.l.google.com:19302"
+                }
+            ]
+        }
 
-        
     });
 
     peer.on("signal", signal => {
@@ -260,6 +262,7 @@ function createPeer(
             stream;
 
         audioElement.autoplay = true;
+
         audioElement.playsInline = true;
 
         audioElement.play()
@@ -281,16 +284,15 @@ function addPeer(
 
         initiator:false,
         trickle:true,
-        stream:stream
+        stream:stream,
 
         config:{
-        iceServers:[
-            {
-                urls:"stun:stun.l.google.com:19302"
-            }
-        ]
-    }
-
+            iceServers:[
+                {
+                    urls:"stun:stun.l.google.com:19302"
+                }
+            ]
+        }
 
     });
 
@@ -317,6 +319,7 @@ function addPeer(
             stream;
 
         audioElement.autoplay = true;
+
         audioElement.playsInline = true;
 
         audioElement.play()
