@@ -105,6 +105,10 @@ body{
 
 const socket = io();
 
+const RADIO_ID = "fw-funkgeraet-1";
+
+let radioApproved = false;
+    
 const channelName = "fw-funk";
 
 const peers = {};
@@ -250,7 +254,40 @@ async function init(){
     );
 }
 
-init();
+socket.emit("claim-radio", RADIO_ID);
+
+socket.on("radio-approved", () => {
+
+    radioApproved = true;
+
+    init();
+});
+
+socket.on("radio-busy", () => {
+
+    document.body.innerHTML = `
+
+        <div style="
+            color:white;
+            font-family:Arial;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            text-align:center;
+            padding:20px;
+        ">
+
+            <div>
+                <h1>📻 Funkgerät besetzt</h1>
+                <p>
+                    Dieses Funkgerät wird bereits benutzt.
+                </p>
+            </div>
+
+        </div>
+    `;
+});
 
 /* PEER ERSTELLEN */
 
