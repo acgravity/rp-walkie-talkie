@@ -6,27 +6,6 @@
 
 <style>
 
-.hotkey-box{
-    position:absolute;
-    top:20px;
-    left:20px;
-    color:white;
-    font-family:Arial;
-    z-index:999;
-}
-
-.hotkey-box button{
-    padding:8px 12px;
-    border:none;
-    border-radius:8px;
-    cursor:pointer;
-}
-
-.hotkey-box p{
-    margin-top:5px;
-    font-size:14px;
-}
-
 body{
     margin:0;
     background:#5e5e5e;
@@ -78,18 +57,6 @@ body{
 </head>
 <body>
 
-<div class="hotkey-box">
-
-    <button id="setHotkeyBtn">
-        🎮 Hotkey festlegen
-    </button>
-
-    <p id="hotkeyDisplay">
-        Hotkey: keiner
-    </p>
-
-</div>
-
 <div class="radio-container">
 
     <img src="funkgeraet.png" class="radio-image">
@@ -118,57 +85,7 @@ const radioSound =
 
 let localStream;
 let micTrack;
-
-let isTalking = false;
-
-/* HOTKEY */
-
-const STORAGE_KEY = "funk_hotkey_1";
-
-let hotkey =
-    localStorage.getItem(STORAGE_KEY);
-
-const hotkeyDisplay =
-    document.getElementById("hotkeyDisplay");
-
-const setHotkeyBtn =
-    document.getElementById("setHotkeyBtn");
-
-if(hotkey){
-
-    hotkeyDisplay.innerText =
-        "Hotkey: " + hotkey.toUpperCase();
-}
-
-setHotkeyBtn.onclick = () => {
-
-    hotkeyDisplay.innerText =
-        "Taste drücken...";
-
-    function keyListener(e){
-
-        hotkey = e.key.toLowerCase();
-
-        localStorage.setItem(
-            STORAGE_KEY,
-            hotkey
-        );
-
-        hotkeyDisplay.innerText =
-            "Hotkey: " + hotkey.toUpperCase();
-
-        document.removeEventListener(
-            "keydown",
-            keyListener
-        );
-    }
-
-    document.addEventListener(
-        "keydown",
-        keyListener
-    );
-};
-
+    
 /* MIKRO INITIALISIEREN */
 
 async function init(){
@@ -454,39 +371,6 @@ talkBtn.addEventListener(
     "touchend",
     e => {
         e.preventDefault();
-    }
-);
-
-/* HOTKEY */
-
-document.addEventListener(
-    "keydown",
-    e => {
-
-        if(!hotkey) return;
-
-        if(
-            e.key.toLowerCase() === hotkey &&
-            !isTalking
-        ){
-
-            startTalking();
-        }
-    }
-);
-
-document.addEventListener(
-    "keyup",
-    e => {
-
-        if(!hotkey) return;
-
-        if(
-            e.key.toLowerCase() === hotkey
-        ){
-
-            stopTalking();
-        }
     }
 );
 
