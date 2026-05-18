@@ -57,25 +57,35 @@ io.on("connection", socket => {
 
     socket.on("sending-signal", payload => {
 
-        io.to(payload.userToSignal).emit(
-            "user-joined",
-            {
-                signal: payload.signal,
-                callerID: payload.callerID
-            }
-        );
-    });
+    io.to(payload.userToSignal).emit(
+        "user-joined",
+        {
+            signal: payload.signal,
+            callerID: payload.callerID
+        }
+    );
+});
 
-    socket.on("returning-signal", payload => {
+socket.on("returning-signal", payload => {
 
-        io.to(payload.callerID).emit(
-            "receiving-returned-signal",
-            {
-                signal: payload.signal,
-                id: socket.id
-            }
-        );
+    io.to(payload.callerID).emit(
+        "receiving-returned-signal",
+        {
+            signal: payload.signal,
+            id: socket.id
+        }
+    );
+});
+
+/* WICHTIG FÜR TRICKLE ICE */
+
+socket.on("signal", data => {
+
+    io.to(data.to).emit("signal", {
+        signal:data.signal,
+        from:socket.id
     });
+});
 
 socket.on("disconnect", () => {
 
