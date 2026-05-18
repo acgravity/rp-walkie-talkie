@@ -17,6 +17,12 @@ const occupiedRadios = {};
 
 io.on("connection", socket => {
 
+    socket.on("radio-click", channel => {
+
+    socket.to(channel).emit("play-radio-click");
+
+});
+
     socket.on("claim-radio", radioId => {
 
     if(occupiedRadios[radioId]){
